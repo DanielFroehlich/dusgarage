@@ -1,1 +1,23 @@
-{"1":{"name":"Platz 3","state":{"name":"BLOCKED","color":"red"},"user":"nobody"},"2":{"name":"Platz 5","state":{"name":"FREE","color":"green"},"user":"nobody"},"3":{"name":"Platz 5","state":{"name":"FREE","color":"green"},"user":"nobody"}}
+[
+  {
+    "name": "Platz A",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "-unknown-"
+  },
+  {
+    "name": "Platz B",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "-unknown-"
+  },
+  {
+    "name": "Platz C",
+    "state": {
+      "name": "OCCUPIED"
+    },
+    "user": "-unknown-"
+  }
+]

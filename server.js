@@ -45,7 +45,7 @@ app.post('/parkinglots/:id', function (req, res) {
   parkinglot.state = getNextState(parkinglot.state)
 
   // Write back state file:
-  fs.writeFile( __dirname + "/" + "parkinglots.json", JSON.stringify(parkinglots), function(err) {
+  fs.writeFile( __dirname + "/" + "parkinglots.json", JSON.stringify(parkinglots, null, 2), function(err) {
      if (err) {
         return console.error(err);
      }

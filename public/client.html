@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-
+  <title>DUSGARGE</title>
+  <style>
 .BUTTON {
   background-color: #555555; /* Grey - Unknown */
   border: none;
@@ -11,7 +11,7 @@
   text-align: center;
   text-decoration: none;
   display: inline-block;
-  font-size: 64px;
+  font-size: 42px;
   margin: 4px 2px;
   cursor: pointer;
   border-radius: 15px;
@@ -39,20 +39,85 @@
 .OCCUPIED:active {background-color: darkred;}
 
 .DOOR {background-color: grey;}
+  </style>
 
-</style>
+  <script>
+function loadParkinglots() {
+  console.log("loadParkinglots")
+  var request = new XMLHttpRequest();
+  request.open("GET", "/parkinglots/", true);
+  request.setRequestHeader("Content-type", "application/json");
+  request.onload = function (e) {
+    if (request.readyState === 4 && request.status === 200 ) {
+      console.log(request.responseText);
+      var listOfParkingLots = JSON.parse(request.responseText);
+      for (i=0; i<listOfParkingLots.length; i++)
+        displayParkinglot(listOfParkingLots[i], i);
+    } else {
+      console.error(request.statusText);
+    }
+  };
+  request.send();
+
+  console.log("loadParkinglots DONE")
+}
+
+function changeParkingLotState(num) {
+  console.log("changeParkingLotState")
+  var request = new XMLHttpRequest();
+  request.open("POST", "/parkinglots/"+num, true);
+  request.setRequestHeader("Content-type", "application/json");
+  request.onload = function (e) {
+    if (request.readyState === 4 && request.status === 200 ) {
+      console.log(request.responseText);
+      var response = JSON.parse(request.responseText);
+      displayParkinglot(response, num);
+    } else {
+      console.error(request.statusText);
+    }
+  };
+
+  request.onerror = function (e) {
+     console.error(request.statusText);
+  };
+
+  request.send();
+}
+
+function createParkinglotElement(num) {
+  var newButtonElement = document.createElement("button");
+  newButtonElement.id = "lot" + num;
+  newButtonElement.onclick = function() {changeParkingLotState(num)};
+  document.getElementById("lotlist").appendChild(newButtonElement);
+  document.getElementById("lotlist").appendChild(document.createElement("br"));
+  return newButtonElement;
+}
+
+function displayParkinglot(lot, num) {
+  var element = document.getElementById("lot"+num);
+  if (element == null) {
+    element = createParkinglotElement(num);
+  }
+
+  element.innerHTML = lot.name+"<br>"+lot.state.name+"<br>";
+  if (lot.state.name == "FREE")
+    element.innerHTML += "Go for it!";
+  else
+    element.innerHTML += "by " + lot.user;
+
+  element.className = "BUTTON PARKINGLOT " + lot.state.name;
+}
+  </script>
 </head>
-<body>
-<h2>DUS GARAGE:</h2>
 
-<button class="BUTTON PARKINGLOT FREE">Test1</button><br>
-<button class="BUTTON PARKINGLOT RESERVED">Test2</button><br>
-<button class="BUTTON PARKINGLOT OCCUPIED">Test3</button><br>
+<body onload="loadParkinglots()">
+    <div id="lotlist">
+    <!-- button Element like the following will by added by functions displayParkinglot():
+  -->
+      <button id="lot0" class="BUTTON PARKINGLOT FREE" onclick="changeParkingLotState(0)">Test1<br>free<br>go for it!</button><br>
+    </div>
 
-<br><br><br>
-
-  <button class="BUTTON DOOR">Open Door</button><br>
-
-
-</body>
+    <br><br><br>
+    <button class="BUTTON DOOR" onclick="loadParkinglots()">Open Door</button><br>
+  </body>
 </html>
