@@ -1,11 +1,26 @@
 {
   "name": "dusgarage",
   "version": "1.0.0",
-  "description": "",
+  "description": "Small App to manage the Garage in Dusseldorf",
   "main": "server.js",
   "author": "Daniel Fröhlich",
   "dependencies": {
     "express": "^4.14.0",
-    "node-cron": "^1.1.2"
-  }
+    "node-cron": "^1.1.2",
+    "passport": "^0.3.2",
+    "socket.io": "^1.7.2"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielFroehlich/dusgarage.git"
+  },
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/DanielFroehlich/dusgarage/issues"
+  },
+  "homepage": "https://github.com/DanielFroehlich/dusgarage#readme"
 }

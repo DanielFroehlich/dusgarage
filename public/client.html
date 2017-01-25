@@ -41,6 +41,9 @@
 .DOOR {background-color: grey;}
   </style>
 
+  <script src="socket.io/socket.io.js"></script>
+
+
   <script>
 function loadParkinglots() {
   console.log("loadParkinglots")
@@ -58,6 +61,13 @@ function loadParkinglots() {
     }
   };
   request.send();
+
+  var socket = io.connect();
+  socket.on('update', function (listOfParkingLots) {
+    console.log("update via websocket received")
+    for (i=0; i<listOfParkingLots.length; i++)
+      displayParkinglot(listOfParkingLots[i], i);
+  });
 
   console.log("loadParkinglots DONE")
 }
@@ -110,7 +120,7 @@ function displayParkinglot(lot, num) {
   </script>
 </head>
 
-<body onload="loadParkinglots()">
+<body onload="loadParkinglots()" >
     <div id="lotlist">
     <!-- button Element like the following will by added by functions displayParkinglot():
   -->
@@ -119,5 +129,8 @@ function displayParkinglot(lot, num) {
 
     <br><br><br>
     <button class="BUTTON DOOR" onclick="loadParkinglots()">Open Door</button><br>
-  </body>
+</body>
+
+
+
 </html>

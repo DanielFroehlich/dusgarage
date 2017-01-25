@@ -1,22 +1,22 @@
 [
   {
-    "name": "Platz A",
+    "name": "Platz 10",
+    "state": {
+      "name": "RESERVED"
+    },
+    "user": "-unknown-"
+  },
+  {
+    "name": "Platz 11",
     "state": {
       "name": "FREE"
     },
     "user": "-unknown-"
   },
   {
-    "name": "Platz B",
+    "name": "Platz ??",
     "state": {
       "name": "FREE"
-    },
-    "user": "-unknown-"
-  },
-  {
-    "name": "Platz C",
-    "state": {
-      "name": "OCCUPIED"
     },
     "user": "-unknown-"
   }
