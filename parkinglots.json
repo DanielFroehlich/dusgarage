@@ -2,22 +2,22 @@
   {
     "name": "Platz 10",
     "state": {
-      "name": "RESERVED"
+      "name": "OCCUPIED"
     },
-    "user": "-unknown-"
+    "user": "dfroehli@redhat.com"
   },
   {
     "name": "Platz 11",
     "state": {
-      "name": "FREE"
+      "name": "RESERVED"
     },
-    "user": "-unknown-"
+    "user": "dfroehli@redhat.com"
   },
   {
     "name": "Platz ??",
     "state": {
       "name": "FREE"
     },
-    "user": "-unknown-"
+    "user": "-nobody-"
   }
 ]

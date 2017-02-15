@@ -39,6 +39,10 @@
 .OCCUPIED:active {background-color: darkred;}
 
 .DOOR {background-color: grey;}
+.DOOR_ONLINE {background-color: blue;}
+.DOOR_OFFLINE {background-color: grey;}
+
+
   </style>
 
   <script src="socket.io/socket.io.js"></script>
@@ -63,10 +67,17 @@ function loadParkinglots() {
   request.send();
 
   var socket = io.connect();
-  socket.on('update', function (listOfParkingLots) {
-    console.log("update via websocket received")
+  socket.on('updateLots', function (listOfParkingLots) {
+    console.log("updateLots via websocket received")
     for (i=0; i<listOfParkingLots.length; i++)
       displayParkinglot(listOfParkingLots[i], i);
+  });
+
+  socket.on('updateDoor', function (doorState) {
+    console.log("updateDoor via websocket received")
+    var element = document.getElementById("doorButton");
+    element.innerHTML = "Open Door<br>Backend is "+doorState;
+    element.className = "BUTTON DOOR DOOR_" + doorState;
   });
 
   console.log("loadParkinglots DONE")
@@ -82,6 +93,28 @@ function changeParkingLotState(num) {
       console.log(request.responseText);
       var response = JSON.parse(request.responseText);
       displayParkinglot(response, num);
+    } else {
+      console.error(request.statusText);
+    }
+  };
+
+  request.onerror = function (e) {
+     console.error(request.statusText);
+  };
+
+  request.send();
+}
+
+function openDoor() {
+  console.log("openDoor")
+  var request = new XMLHttpRequest();
+  request.open("POST", "/openDoor", true);
+  request.setRequestHeader("Content-type", "application/json");
+  request.onload = function (e) {
+    if (request.readyState === 4 && request.status === 200 ) {
+      console.log(request.responseText);
+      var response = JSON.parse(request.responseText);
+
     } else {
       console.error(request.statusText);
     }
@@ -123,12 +156,12 @@ function displayParkinglot(lot, num) {
 <body onload="loadParkinglots()" >
     <div id="lotlist">
     <!-- button Element like the following will by added by functions displayParkinglot():
-  -->
       <button id="lot0" class="BUTTON PARKINGLOT FREE" onclick="changeParkingLotState(0)">Test1<br>free<br>go for it!</button><br>
+    -->
     </div>
 
     <br><br><br>
-    <button class="BUTTON DOOR" onclick="loadParkinglots()">Open Door</button><br>
+    <button id="doorButton" class="BUTTON DOOR DOOR_OFFLINE" onclick="openDoor()">Open Door<br>Backend is OFFLINE</button>
 </body>
 
 
