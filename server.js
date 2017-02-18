@@ -204,7 +204,7 @@ server.listen(cfg.SERVER_PORT);
 
 console.log("Scheduling cronjob....")
  // ss mm hh day month dayOfWeek
-cron.schedule('42 42 04 * * *', function(){
+cron.schedule('42 42 4 * * *', function(){
   resetStates()
 });
 
