@@ -11,7 +11,7 @@ var fs    = require("fs");
 var GoogleStrategy  = require( "passport-google-oauth" ).OAuth2Strategy;
 var passport = require( "passport" );
 var env = process.env.NODE_ENV || "dev";
-var cfg = require("./config."+env);
+var cfg = require("../config."+env);
 
 var parkinglots;
 var arrayOfStates;
