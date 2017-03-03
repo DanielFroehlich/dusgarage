@@ -2,19 +2,19 @@
   {
     "name": "Platz 10",
     "state": {
-      "name": "OCCUPIED"
+      "name": "FREE"
     },
-    "user": "dfroehli@redhat.com"
+    "user": "-nobody-"
   },
   {
     "name": "Platz 11",
     "state": {
-      "name": "RESERVED"
+      "name": "FREE"
     },
-    "user": "dfroehli@redhat.com"
+    "user": "-nobody-"
   },
   {
-    "name": "Platz ??",
+    "name": "Platz 29 (max. H=1.50)",
     "state": {
       "name": "FREE"
     },

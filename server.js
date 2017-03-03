@@ -1,10 +1,10 @@
 const debug = require('debug')('dusgarage')
 var express  = require('express');
 var cookieParser = require('cookie-parser')
-var session = require('express-session')
-var FileStore = require('session-file-store')(session);
 var app   = express();
-var server = require('http').createServer(app);
+var request = require('request')
+var http = require('http');
+var server = http.createServer(app);
 var io    = require('socket.io').listen(server);
 var cron  = require('node-cron');
 var fs    = require("fs");
@@ -15,18 +15,13 @@ var cfg = require("./config."+env);
 
 var parkinglots;
 var arrayOfStates;
-var doorState = "OFFLINE";
+var doorState = "UNKNOWN";
+var isSecurityEnabled = false;
 
 // ------------- Init stuff ----------------
 app.use(cookieParser());
 //app.use(express.bodyParser());
-app.use(session({
-//  store: new FileStore({ttl: 315360000000}),
-  secret: 'keyboard cat',
-  cookie: {maxAge: 315360000000}
-}));
 app.use(passport.initialize());
-app.use(passport.session());
 
 
 
@@ -64,6 +59,30 @@ function parkinglotModified() {
   io.sockets.emit('updateLots', parkinglots);
 }
 
+function checkDoorAvailability() {
+  debug("checkDoorAvailability with URL %s", cfg.DOOR_URL_CHECK )
+
+  var req = request.get(cfg.DOOR_URL_CHECK , {timeout: cfg.DOOR_TIMEOUT}, function(err, res, body) {
+    debug('response');
+    if (!err && res.statusCode == 200) {
+      handleNewDoorState("ONLINE");
+    } else{
+      debug("err=%s", err)
+      handleNewDoorState("OFFLINE");
+    }
+  });
+}
+
+function handleNewDoorState(newDoorState) {
+  if (newDoorState !== doorState) {
+    doorState = newDoorState;
+    debug("Broadcast new door state %s to %s connected clients...", doorState, io.engine.clientsCount)
+    io.sockets.emit('updateDoor', doorState);
+  }
+
+}
+
+
 // ----------- REST SERVICES ----------
 
 app.get('/parkinglots', function (req, res) {
@@ -84,19 +103,22 @@ app.post('/parkinglots/:id', ensureAuthenticated, function (req, res) {
 
   if (newState.name == "FREE") {
     // Only the current owner can free his parking lot:
-    if (parkinglot.user == req.user.email) {
+    if (isSecurityEnabled==false || parkinglot.user == req.user.email) {
       parkinglot.user = "-nobody-";
       parkinglot.state = newState;
       modified = true;
     }
   } else if (newState.name == "RESERVED") {
-    parkinglot.user = req.user.email;
+    if (isSecurityEnabled) {
+      parkinglot.user = req.user.email;
+    } else {
+      parkinglot.user = "-unknown-";
+    }
     parkinglot.state = newState;
     modified = true;
   } else if (newState.name == "OCCUPIED") {
       // Only user with reservation can occupy:
-      if (parkinglot.user == req.user.email) {
-         parkinglot.user = req.user.email;
+      if (isSecurityEnabled==false || parkinglot.user == req.user.email) {
          parkinglot.state = newState;
          modified = true;
     }
@@ -108,12 +130,20 @@ app.post('/parkinglots/:id', ensureAuthenticated, function (req, res) {
   res.end( JSON.stringify(parkinglot));
 });
 
-app.post('/openDoor', ensureAuthenticated, function (req, res) {
+app.post('/openDoor', ensureAuthenticated, function (req, resClient) {
   debug("post openDoor");
+  var req = request.post(cfg.DOOR_URL_OPEN, {timeout: cfg.DOOR_TIMEOUT}, function(err, res, body) {
+    debug('response');
+    if (!err && res.statusCode == 200) {
+      resClient.status(200).json({ message: "OK" });
+      handleNewDoorState("ONLINE");
+    } else{
+      resClient.status("503").json({ message: err });
+      handleNewDoorState("OFFLINE");
+    }
+    resClient.end();
+  });
 
-//  io.sockets.emit('updateDoor', "ONLINE");
-
-  res.status(503).json({ message: "Backend is offline" });
 });
 
 app.get('/', ensureAuthenticated, function (req, res) {
@@ -171,20 +201,28 @@ passport.deserializeUser(function(id, done) {
 });
 
 app.get('/auth/google', passport.authenticate('google',
-    { scope: ['https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/userinfo.email'] }),
+    { scope: ['https://www.googleapis.com/auth/userinfo.email'] }),
     function(req, res){} // this never gets called
 );
-app.get('/oauth2callback', passport.authenticate('google',
-    { successRedirect: '/', failureRedirect: '/auth/google' }
-));
+app.get('/oauth2callback',
+  passport.authenticate('google', { session: false, successRedirect: '/', failureRedirect: '/auth/google' }),
+  function(req,resp) {
+    resp.cookie()
+  }
+);
 
 function ensureAuthenticated(req, res, next) {
-  debug("ensureAuthenticated");
-    if (req.isAuthenticated()) { return next(); }
-    debug("ensureAuthenticated: req is not authenticated");
-    res.redirect("/auth/google");
+  if (isSecurityEnabled) {
+    debug("ensureAuthenticated");
+      if (req.isAuthenticated()) { return next(); }
+      debug("ensureAuthenticated: req is not authenticated");
+      res.redirect("/auth/google");
+
+  } else {
+    return next();
+  }
 }
+
 
 // ------------- INIT ----------------
 
@@ -202,12 +240,15 @@ console.log("Creating server socket...")
 server.listen(cfg.SERVER_PORT);
 
 
-console.log("Scheduling cronjob....")
+console.log("Scheduling cronjobs....")
  // ss mm hh day month dayOfWeek
-cron.schedule('42 42 4 * * *', function(){
+cron.schedule(cfg.CRON_RESET_LOTS, function(){
   resetStates()
 });
 
+cron.schedule(cfg.CRON_DOOR_CHECK, function(){
+  checkDoorAvailability()
+});
 
 
 console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
