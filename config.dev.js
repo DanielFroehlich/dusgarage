@@ -8,7 +8,7 @@ config.GOOGLE_CLIENT_SECRET = "edVtWz93jJ0HxyNlC5eoDNg2"
 config.GOOGLE_CALLBACK_URL = "http://localhost:8081/oauth2callback"
 
 config.DOOR_URL_CHECK = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value"
-config.DOOR_TIMEOUT = 2000
+config.DOOR_TIMEOUT = 250
 config.DOOR_URL_OPEN = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value/1"
 
 // ------------------------

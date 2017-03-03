@@ -62,23 +62,14 @@ function parkinglotModified() {
 function checkDoorAvailability() {
   debug("checkDoorAvailability with URL %s", cfg.DOOR_URL_CHECK )
 
-  var req = http.get(cfg.DOOR_URL_CHECK , function(res) {
+  var req = request.get(cfg.DOOR_URL_CHECK , {timeout: cfg.DOOR_TIMEOUT}, function(err, res, body) {
     debug('response');
-    if (res.statusCode == 200) {
+    if (!err && res.statusCode == 200) {
       handleNewDoorState("ONLINE");
     } else{
-      debug("statusCode=%s",res.statusCode)
+      debug("err=%s", err)
       handleNewDoorState("OFFLINE");
     }
-  }).on('error', function(e){
-    debug("error=%s",e)
-    handleNewDoorState("OFFLINE");
-  });
-
-  req.setTimeout( cfg.DOOR_TIMEOUT, function() {
-    debug("timeout");
-    handleNewDoorState("OFFLINE");
-    req.abort();
   });
 }
 
@@ -143,11 +134,11 @@ app.post('/openDoor', ensureAuthenticated, function (req, resClient) {
   debug("post openDoor");
   var req = request.post(cfg.DOOR_URL_OPEN, {timeout: cfg.DOOR_TIMEOUT}, function(err, res, body) {
     debug('response');
-    if (res.statusCode == 200) {
+    if (!err && res.statusCode == 200) {
       resClient.status(200).json({ message: "OK" });
       handleNewDoorState("ONLINE");
     } else{
-      resClient.status(res.statusCode).json({ message: "Backend Error" });
+      resClient.status("503").json({ message: err });
       handleNewDoorState("OFFLINE");
     }
     resClient.end();
