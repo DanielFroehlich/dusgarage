@@ -12,6 +12,7 @@ var GoogleStrategy  = require( "passport-google-oauth" ).OAuth2Strategy;
 var passport = require( "passport" );
 var env = process.env.NODE_ENV || "dev";
 var cfg = require("../config."+env);
+var sleep = require("sleep-async")();
 
 var parkinglots;
 var arrayOfStates;
@@ -239,7 +240,6 @@ fs.readFile( __dirname + "/" + "states.json", 'utf8', function (err, data) {
 console.log("Creating server socket...")
 server.listen(cfg.SERVER_PORT);
 
-
 console.log("Scheduling cronjobs....")
  // ss mm hh day month dayOfWeek
 cron.schedule(cfg.CRON_RESET_LOTS, function(){
@@ -249,6 +249,9 @@ cron.schedule(cfg.CRON_RESET_LOTS, function(){
 cron.schedule(cfg.CRON_DOOR_CHECK, function(){
   checkDoorAvailability()
 });
+
+console.log("Check door backend availability...");
+sleep.sleep(5000, checkDoorAvailability)
 
 
 console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
