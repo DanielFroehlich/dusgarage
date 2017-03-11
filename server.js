@@ -1,6 +1,8 @@
 const debug = require('debug')('dusgarage')
 var express  = require('express');
+var session = require('express-session');
 var cookieParser = require('cookie-parser')
+var bodyParser = require('body-parser')
 var app   = express();
 var request = require('request')
 var http = require('http');
@@ -17,13 +19,18 @@ var sleep = require("sleep-async")();
 var parkinglots;
 var arrayOfStates;
 var doorState = "UNKNOWN";
-var isSecurityEnabled = false;
+var isSecurityEnabled = true;
 
 // ------------- Init stuff ----------------
 app.use(cookieParser());
-//app.use(express.bodyParser());
+app.use(bodyParser.json());
+app.use(session({
+//  store: new FileStore({ttl: 315360000000}),
+  secret: 'keyboard cat',
+  cookie: {maxAge: 315360000000}
+}));
 app.use(passport.initialize());
-
+app.use(passport.session());
 
 
 // ----------- BUSINESS LOGIC ----------
@@ -155,6 +162,9 @@ app.get('/', ensureAuthenticated, function (req, res) {
 app.get('/health', function(req, res){
   res.send('1');
 });
+app.get('/ready', function(req, res){
+  res.send('1');
+});
 
 
 // ------------- Websocket stuff: ----------------
@@ -180,7 +190,7 @@ passport.use(new GoogleStrategy({
         callbackURL: cfg.GOOGLE_CALLBACK_URL
     },
     function(accessToken, refreshToken, profile, done) {
-        debug("passport-use");
+        debug("passport-use: at=%s, rt=%s, p=%s", accessToken, refreshToken, profile);
         process.nextTick(function () {
             return done(null, profile);
         });
@@ -205,15 +215,23 @@ app.get('/auth/google', passport.authenticate('google',
     { scope: ['https://www.googleapis.com/auth/userinfo.email'] }),
     function(req, res){} // this never gets called
 );
+
+app.get('/oauth2callback', passport.authenticate('google',
+    { successRedirect: '/', failureRedirect: '/auth/google' }
+));
+
+/*
 app.get('/oauth2callback',
   passport.authenticate('google', { session: false, successRedirect: '/', failureRedirect: '/auth/google' }),
   function(req,resp) {
     resp.cookie()
   }
 );
+*/
+
 
 function ensureAuthenticated(req, res, next) {
-  if (isSecurityEnabled) {
+  if (isSecurityEnabled == true) {
     debug("ensureAuthenticated");
       if (req.isAuthenticated()) { return next(); }
       debug("ensureAuthenticated: req is not authenticated");
