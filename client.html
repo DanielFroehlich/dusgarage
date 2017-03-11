@@ -75,12 +75,21 @@ function loadParkinglots() {
 
   socket.on('updateDoor', function (doorState) {
     console.log("updateDoor via websocket received")
-    var element = document.getElementById("doorButton");
-    element.innerHTML = "Open Door<br>Backend is "+doorState;
-    element.className = "BUTTON DOOR DOOR_" + doorState;
+    updateDoorButtonState(doorState);
+  });
+
+  socket.on('disconnect', function () {
+    updateDoorButtonState('OFFLINE');
   });
 
   console.log("loadParkinglots DONE")
+}
+
+function updateDoorButtonState(doorState) {
+  console.log("updateDoor")
+  var element = document.getElementById("doorButton");
+  element.innerHTML = "Open Door<br>Backend is "+doorState;
+  element.className = "BUTTON DOOR DOOR_" + doorState;
 }
 
 function changeParkingLotState(num) {
