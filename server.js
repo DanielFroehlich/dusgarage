@@ -1,6 +1,5 @@
 const debug = require('debug')('dusgarage')
 var express  = require('express');
-var session = require('express-session');
 var cookieParser = require('cookie-parser')
 var bodyParser = require('body-parser')
 var app   = express();
@@ -10,11 +9,11 @@ var server = http.createServer(app);
 var io    = require('socket.io').listen(server);
 var cron  = require('node-cron');
 var fs    = require("fs");
-var GoogleStrategy  = require( "passport-google-oauth" ).OAuth2Strategy;
-var passport = require( "passport" );
 var env = process.env.NODE_ENV || "dev";
 var cfg = require("../config."+env);
 var sleep = require("sleep-async")();
+var google = require('googleapis');
+var plus = google.plus('v1');
 
 var parkinglots;
 var arrayOfStates;
@@ -24,13 +23,6 @@ var isSecurityEnabled = true;
 // ------------- Init stuff ----------------
 app.use(cookieParser());
 app.use(bodyParser.json());
-app.use(session({
-//  store: new FileStore({ttl: 315360000000}),
-  secret: 'keyboard cat',
-  cookie: {maxAge: 315360000000}
-}));
-app.use(passport.initialize());
-app.use(passport.session());
 
 
 // ----------- BUSINESS LOGIC ----------
@@ -111,14 +103,14 @@ app.post('/parkinglots/:id', ensureAuthenticated, function (req, res) {
 
   if (newState.name == "FREE") {
     // Only the current owner can free his parking lot:
-    if (isSecurityEnabled==false || parkinglot.user == req.user.email) {
+    if (isSecurityEnabled==false || parkinglot.user == req.user) {
       parkinglot.user = "-nobody-";
       parkinglot.state = newState;
       modified = true;
     }
   } else if (newState.name == "RESERVED") {
     if (isSecurityEnabled) {
-      parkinglot.user = req.user.email;
+      parkinglot.user = req.user;
     } else {
       parkinglot.user = "-unknown-";
     }
@@ -126,7 +118,7 @@ app.post('/parkinglots/:id', ensureAuthenticated, function (req, res) {
     modified = true;
   } else if (newState.name == "OCCUPIED") {
       // Only user with reservation can occupy:
-      if (isSecurityEnabled==false || parkinglot.user == req.user.email) {
+      if (isSecurityEnabled==false || parkinglot.user == req.user) {
          parkinglot.state = newState;
          modified = true;
     }
@@ -184,60 +176,109 @@ io.sockets.on('connection', function (socket) {
 
 // ------------- Authentication stuff: ----------------
 console.log("Setting up google authentication..");
-passport.use(new GoogleStrategy({
-        clientID: cfg.GOOGLE_CLIENT_ID,
-        clientSecret: cfg.GOOGLE_CLIENT_SECRET,
-        callbackURL: cfg.GOOGLE_CALLBACK_URL
-    },
-    function(accessToken, refreshToken, profile, done) {
-        debug("passport-use: at=%s, rt=%s, p=%s", accessToken, refreshToken, profile);
-        process.nextTick(function () {
-            return done(null, profile);
-        });
-    }
-));
-passport.serializeUser(function(user, done) {
-    debug("passport-serializeUser:");
-    debug("   user.id=%s", user.id);
-    debug("   user.displayName=%s", user.displayName);
-    debug("   user.email=%s", user.emails[0].value);
-    debug("   user.photo=%s", user.photos[0].value);
-    done(null, user.emails[0].value);
-});
-passport.deserializeUser(function(id, done) {
-  debug("passport-deserializeUser id = %s", id);
-  var user = new Object();
-  user.email = id;
-  done(null, user);
+var OAuth2 = google.auth.OAuth2;
+var oauth2Client = new OAuth2(
+  cfg.GOOGLE_CLIENT_ID,
+  cfg.GOOGLE_CLIENT_SECRET,
+  cfg.GOOGLE_CALLBACK_URL
+);
+var authurl = oauth2Client.generateAuthUrl({
+  scope: [
+    'https://www.googleapis.com/auth/plus.login',
+    'https://www.googleapis.com/auth/plus.me',
+    'https://www.googleapis.com/auth/userinfo.email'
+//    'https://www.googleapis.com/auth/userinfo.profile'
+  ],
+  access_type: 'offline'
 });
 
-app.get('/auth/google', passport.authenticate('google',
-    { scope: ['https://www.googleapis.com/auth/userinfo.email'] }),
-    function(req, res){} // this never gets called
-);
+app.get('/auth/google', function(req, res){
+  debug("auth/google: server side redirect to %s", authurl);
+  res.redirect(authurl);
+});
 
-app.get('/oauth2callback', passport.authenticate('google',
-    { successRedirect: '/', failureRedirect: '/auth/google' }
-));
+app.get('/oauth2callback', function(req, res){
+  debug("oauth2callback");
+  var code = req.query.code;
+  debug("code = %s", code);
 
-/*
-app.get('/oauth2callback',
-  passport.authenticate('google', { session: false, successRedirect: '/', failureRedirect: '/auth/google' }),
-  function(req,resp) {
-    resp.cookie()
-  }
-);
-*/
+  oauth2Client.getToken(code, function(err, tokens) {
+      debug("getToken: err=%s, tokens=%s", err, JSON.stringify(tokens));
 
+      if (err) {
+        debug("getToken failed with error %s", err);
+        debug("Redirecting to login");
+        res.redirect("/auth/google");
+      } else {
+//      debug("Storing id token in bearer cookie");
+//      res.cookie('bearer', tokens.id_token, { expires: new Date(Date.now() + 9999999), httpOnly:true });
+
+        debug("Storing refresh token in bearer cookie");
+        res.cookie('bearer', tokens.refresh_token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
+
+        // Send back the token to the client in URL
+        res.redirect("/");
+      }
+  });
+});
 
 function ensureAuthenticated(req, res, next) {
-  if (isSecurityEnabled == true) {
-    debug("ensureAuthenticated");
-      if (req.isAuthenticated()) { return next(); }
-      debug("ensureAuthenticated: req is not authenticated");
-      res.redirect("/auth/google");
+  debug("ensureAuthenticated");
 
+  if (isSecurityEnabled == true) {
+    if (req.cookies.bearer) {
+      // Bearer token is a refresh_token
+      // Use it to make a call to google plus API to retrieve user details
+      oauth2Client.setCredentials({
+        refresh_token: req.cookies.bearer
+      });
+
+      plus.people.get({
+        userId: 'me',
+        auth: oauth2Client}, function (err, response) {
+          if (err) {
+            debug("Bearer Cookie validation failed with error %s", err);
+            debug("Redirecting to login");
+            res.redirect("/auth/google");
+          } else {
+            debug("Bearer Cookie validated! response=%s", JSON.stringify(response));
+            req.user=response.displayName;
+
+            return next();
+          }
+      });
+
+/* First Version with id_token as bearer token:
+
+      debug("Bearer Cookie found - need to validate it");
+      oauth2Client.verifyIdToken(
+        req.cookies.bearer,
+        cfg.GOOGLE_CLIENT_ID,
+        function(err, login) {
+            if (err) {
+              debug("Bearer Cookie validation failed with error %s", err);
+              debug("Redirecting to login");
+              res.redirect("/auth/google");
+            } else {
+              debug("Bearer Cookie validated!");
+              var payload = login.getPayload();
+              var email = payload['email'];
+              var domain = payload['hd'];
+              debug("domain=%s, email = %s", domain, email);
+
+              req.user=email;
+
+              return next();
+            }
+        }
+      );
+*/
+    } else {
+      debug("No Bearer Cookie found - redirecting to login page");
+      res.redirect("/auth/google");
+    }
   } else {
+    debug("security is disabled");
     return next();
   }
 }
