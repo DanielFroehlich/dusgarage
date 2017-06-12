@@ -202,10 +202,10 @@ var oauth2Client = new OAuth2(
 );
 var authurl = oauth2Client.generateAuthUrl({
   scope: [
-//    'https://www.googleapis.com/auth/plus.login',
-    'https://www.googleapis.com/auth/plus.me'
-//    'https://www.googleapis.com/auth/userinfo.email'
-//    'https://www.googleapis.com/auth/userinfo.profile'
+    'https://www.googleapis.com/auth/plus.login',
+    'https://www.googleapis.com/auth/plus.me',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
   ],
   access_type: 'offline'
 });
