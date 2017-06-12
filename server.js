@@ -19,6 +19,7 @@ var parkinglots;
 var arrayOfStates;
 var doorState = "UNKNOWN";
 var isSecurityEnabled = true;
+var fileSelfChanged = false;
 
 // ------------- Init stuff ----------------
 app.use(cookieParser());
@@ -49,14 +50,16 @@ function resetStates() {
 
 function parkinglotModified() {
   debug("Persisting state...")
+  fileSelfChanged = true;
+
   fs.writeFile( __dirname + "/" + "parkinglots.json", JSON.stringify(parkinglots, null, 2), function(err) {
+    fileSelfChanged = false;
      if (err) {
         return console.error(err);
      }
-   })
+   });
 
-  debug("Broadcast state change to %s connected clients...", io.engine.clientsCount)
-  io.sockets.emit('updateLots', parkinglots);
+   broadcastStateChange();
 }
 
 function checkDoorAvailability() {
@@ -146,10 +149,20 @@ app.post('/openDoor', ensureAuthenticated, function (req, resClient) {
 
 });
 
+
+// ----------- PAGES SERVICES ----------
+
 app.get('/', ensureAuthenticated, function (req, res) {
 	res.sendFile(__dirname + '/client.html');
 });
+app.get('/error', function (req, res) {
+	res.status("400").sendFile(__dirname + '/error.html');
+});
 
+app.get('/logout', function (req, res) {
+  res.clearCookie("bearer");
+  res.redirect("/");
+});
 
 app.get('/health', function(req, res){
   res.send('1');
@@ -173,6 +186,11 @@ io.sockets.on('connection', function (socket) {
   });
 });
 
+function broadcastStateChange() {
+  debug("Broadcast state change to %s connected clients...", io.engine.clientsCount)
+  io.sockets.emit('updateLots', parkinglots);
+}
+
 
 // ------------- Authentication stuff: ----------------
 console.log("Setting up google authentication..");
@@ -184,9 +202,9 @@ var oauth2Client = new OAuth2(
 );
 var authurl = oauth2Client.generateAuthUrl({
   scope: [
-    'https://www.googleapis.com/auth/plus.login',
-    'https://www.googleapis.com/auth/plus.me',
-    'https://www.googleapis.com/auth/userinfo.email'
+//    'https://www.googleapis.com/auth/plus.login',
+    'https://www.googleapis.com/auth/plus.me'
+//    'https://www.googleapis.com/auth/userinfo.email'
 //    'https://www.googleapis.com/auth/userinfo.profile'
   ],
   access_type: 'offline'
@@ -206,15 +224,23 @@ app.get('/oauth2callback', function(req, res){
       debug("getToken: err=%s, tokens=%s", err, JSON.stringify(tokens));
 
       if (err) {
-        debug("getToken failed with error %s", err);
-        debug("Redirecting to login");
-        res.redirect("/auth/google");
+        msg = "getToken failed with error " +err;
+        debug(msg);
+        res.redirect("/error?msg="+msg);
       } else {
+        if (tokens.refresh_token === undefined && tokens.access_token !== undefined) {
+          debug("Handle Special case - use access_token");
+          token = tokens.access_token;
+        } else {
+          debug("Handle Special case - use refresh_token");
+          token = tokens.refresh_token;
+        }
+
 //      debug("Storing id token in bearer cookie");
 //      res.cookie('bearer', tokens.id_token, { expires: new Date(Date.now() + 9999999), httpOnly:true });
 
-        debug("Storing refresh token in bearer cookie");
-        res.cookie('bearer', tokens.refresh_token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
+        debug("Storing  token in bearer cookie: %s", token);
+        res.cookie('bearer', token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
 
         // Send back the token to the client in URL
         res.redirect("/");
@@ -227,6 +253,8 @@ function ensureAuthenticated(req, res, next) {
 
   if (isSecurityEnabled == true) {
     if (req.cookies.bearer) {
+      debug("bearer cookie: %s", req.cookies.bearer);
+
       // Bearer token is a refresh_token
       // Use it to make a call to google plus API to retrieve user details
       oauth2Client.setCredentials({
@@ -237,9 +265,9 @@ function ensureAuthenticated(req, res, next) {
         userId: 'me',
         auth: oauth2Client}, function (err, response) {
           if (err) {
-            debug("Bearer Cookie validation failed with error %s", err);
-            debug("Redirecting to login");
-            res.redirect("/auth/google");
+            msg = "Bearer Cookie validation failed with error" + err;
+            debug(msg);
+            res.redirect("/error?msg="+msg);
           } else {
             debug("Bearer Cookie validated! response=%s", JSON.stringify(response));
             req.user=response.displayName;
@@ -274,8 +302,9 @@ function ensureAuthenticated(req, res, next) {
       );
 */
     } else {
-      debug("No Bearer Cookie found - redirecting to login page");
-      res.redirect("/auth/google");
+      msg = "No Bearer Cookie found";
+      debug(msg);
+      res.redirect("/error?msg="+msg);
     }
   } else {
     debug("security is disabled");
@@ -283,13 +312,32 @@ function ensureAuthenticated(req, res, next) {
   }
 }
 
+function readParkingLotsFromFile() {
+  console.log("Reading parkinglots...")
+  return fs.readFile( __dirname + "/" + "parkinglots.json", 'utf8', function (err, data) {
+      if (err || data == null || data.length < 16) {
+        console.log("... failed! err=%s, data=%s", err, data);
+        return false;
+      } else {
+        parkinglots = JSON.parse(data)
+        return true;
+      }
+  });
+}
 
 // ------------- INIT ----------------
+readParkingLotsFromFile();
 
-console.log("Reading state...")
-fs.readFile( __dirname + "/" + "parkinglots.json", 'utf8', function (err, data) {
-    parkinglots = JSON.parse(data)
-  });
+console.log("Watching parkinglots...");
+
+fs.watch(__dirname + "/" + "parkinglots.json", function (event, filename) {
+    debug('Parkinglots changed on disc. filename=%s, Event=%s, selfChanged=%s ',filename, event, fileSelfChanged);
+    if (filename && event=="change" && !fileSelfChanged) {
+        console.log("Parkingslots changed on disc - refreshing...");
+        readParkingLotsFromFile();
+        broadcastStateChange();
+    }
+});
 
 console.log("Reading states...")
 fs.readFile( __dirname + "/" + "states.json", 'utf8', function (err, data) {
@@ -313,4 +361,4 @@ console.log("Check door backend availability...");
 sleep.sleep(5000, checkDoorAvailability)
 
 
-console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
+//console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
