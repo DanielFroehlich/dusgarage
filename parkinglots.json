@@ -1,23 +1,51 @@
 [
   {
-    "name": "Platz 10",
-    "state": {
-      "name": "RESERVED"
-    },
-    "user": "Daniel Fröhlich"
-  },
-  {
-    "name": "Platz 11",
+    "name": "Platz 9 (SF)",
     "state": {
       "name": "FREE"
     },
     "user": "-nobody-"
   },
   {
-    "name": "Platz 29 (max. H=1.50)",
+    "name": "Platz 10 (RH)",
+    "state": {
+      "name": "OCCUPIED"
+    },
+    "user": "Joachim Schroder"
+  },
+  {
+    "name": "Platz 11 - Fahrräder",
     "state": {
       "name": "FREE"
     },
     "user": "-nobody-"
+  },
+  {
+    "name": "Platz 25 (SF) - max H=1.50m",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "-nobody-"
+  },
+  {
+    "name": "Platz 26 (SF) - max H=1.50m",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "-nobody-"
+  },
+  {
+    "name": "Platz 28 (SF) - max H=1.50m",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "-nobody-"
+  },
+  {
+    "name": "Platz 29 (RH) - max H=1.50m",
+    "state": {
+      "name": "FREE"
+    },
+    "user": "Joachim Schroder"
   }
 ]
