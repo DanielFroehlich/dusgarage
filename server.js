@@ -9,8 +9,8 @@ var server = http.createServer(app);
 var io    = require('socket.io').listen(server);
 var cron  = require('node-cron');
 var fs    = require("fs");
-var env = process.env.NODE_ENV || "dev";
-var cfg = require("../config."+env);
+var env = process.env.DUSGARAGE_CFG || "/tmp/dusgarage_cfg.js";
+var cfg = require(env);
 var sleep = require("sleep-async")();
 var google = require('googleapis');
 var plus = google.plus('v1');
@@ -52,7 +52,7 @@ function parkinglotModified() {
   debug("Persisting state...")
   fileSelfChanged = true;
 
-  fs.writeFile( __dirname + "/" + "parkinglots.json", JSON.stringify(parkinglots, null, 2), function(err) {
+  fs.writeFile( cfg.CURRENT_STATE_FILE_PATH, JSON.stringify(parkinglots, null, 2), function(err) {
     fileSelfChanged = false;
      if (err) {
         return console.error(err);
@@ -313,8 +313,8 @@ function ensureAuthenticated(req, res, next) {
 }
 
 function readParkingLotsFromFile() {
-  console.log("Reading parkinglots...")
-  return fs.readFile( __dirname + "/" + "parkinglots.json", 'utf8', function (err, data) {
+  console.log("Reading parkinglots from "+cfg.CURRENT_STATE_FILE_PATH+"...")
+  return fs.readFile( cfg.CURRENT_STATE_FILE_PATH, 'utf8', function (err, data) {
       if (err || data == null || data.length < 16) {
         console.log("... failed! err=%s, data=%s", err, data);
         return false;
@@ -330,7 +330,7 @@ readParkingLotsFromFile();
 
 console.log("Watching parkinglots...");
 
-fs.watch(__dirname + "/" + "parkinglots.json", function (event, filename) {
+fs.watch(cfg.CURRENT_STATE_FILE_PATH, function (event, filename) {
     debug('Parkinglots changed on disc. filename=%s, Event=%s, selfChanged=%s ',filename, event, fileSelfChanged);
     if (filename && event=="change" && !fileSelfChanged) {
         console.log("Parkingslots changed on disc - refreshing...");
