@@ -1,38 +1,31 @@
 [
   {
-    "name": "Platz 9 (SF)",
+    "name": "Platz 10 (RH)",
     "state": {
       "name": "FREE"
     },
     "user": "-nobody-"
-  },
-  {
-    "name": "Platz 10 (RH)",
-    "state": {
-      "name": "OCCUPIED"
-    },
-    "user": "Joachim Schroder"
   },
   {
     "name": "Platz 11 - Fahrräder",
     "state": {
       "name": "FREE"
     },
-    "user": "-nobody-"
+    "user": "Patrick Heinen"
   },
   {
     "name": "Platz 25 (SF) - max H=1.50m",
     "state": {
       "name": "FREE"
     },
-    "user": "-nobody-"
+    "user": "Dennis Deitermann"
   },
   {
     "name": "Platz 26 (SF) - max H=1.50m",
     "state": {
       "name": "FREE"
     },
-    "user": "-nobody-"
+    "user": "Götz Gützlaff"
   },
   {
     "name": "Platz 28 (SF) - max H=1.50m",
@@ -44,8 +37,8 @@
   {
     "name": "Platz 29 (RH) - max H=1.50m",
     "state": {
-      "name": "FREE"
+      "name": "RESERVED"
     },
-    "user": "Joachim Schroder"
+    "user": "Sebastian Faulhaber"
   }
 ]
