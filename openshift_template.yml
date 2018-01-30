@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: Template
+metadata:
+  creationTimestamp: null
+  name: dusgarage
+objects:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftWebConsole
+    creationTimestamp: null
+    generation: 1
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: dusgarage
+    strategy:
+      activeDeadlineSeconds: 21600
+      recreateParams:
+        timeoutSeconds: 120
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: dusgarage
+          deploymentconfig: dusgarage
+      spec:
+        containers:
+        - image: dusgarage
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: dusgarage
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /tmp
+            name: volume-yihg1
+          - mountPath: /data
+            name: volume-4kfyc
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: node-cfg
+              path: dusgarage_cfg.js
+            name: dusgarage-cfg
+          name: volume-yihg1
+        - name: volume-4kfyc
+          persistentVolumeClaim:
+            claimName: dusgarage-pvc
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - dusgarage
+        from:
+          kind: ImageStreamTag
+          name: dusgarage:prod
+          namespace: dusgarage-dev
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  data:
+    node-cfg: |
+      var config = module.exports = {};
+
+      config.env = 'dev';
+      config.SERVER_PORT = '8080';
+
+      config.CURRENT_STATE_FILE_PATH = "/data/parkinglots.json"
+
+      config.GOOGLE_CLIENT_ID = "894972897599-i2i74fpsh81plg6v934pianelkcf1ogh.apps.googleusercontent.com";
+      config.GOOGLE_CLIENT_SECRET = "i6rYSDSv4i30JhC6E7MGoF1k"
+      config.GOOGLE_CALLBACK_URL = "http://dusgarage-dusgarage-dev.6923.rh-us-east-1.openshiftapps.com/oauth2callback"
+
+      config.DOOR_URL_CHECK = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value"
+      config.DOOR_TIMEOUT = 15000
+      config.DOOR_URL_OPEN = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value/1"
+
+      // ------------------------
+      // CRON Entries. Syntax:
+      // ss mm hh day month dayOfWeek
+
+      // When to reset all lots to "Free":
+      config.CRON_RESET_LOTS="42 42 4 * * *"
+
+      // How often to check door availability:
+      config.CRON_DOOR_CHECK= "0 0 * * * *"
+
+      module.exports = config;
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: null
+    name: dusgarage-cfg
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      volume.beta.kubernetes.io/storage-class: gp2
+#      volume.beta.kubernetes.io/storage-provisioner: kubernetes.io/aws-ebs
+    creationTimestamp: null
+    name: dusgarage-pvc
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+  status: {}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: dusgarage
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
