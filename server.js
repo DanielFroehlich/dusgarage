@@ -11,7 +11,7 @@ var cron  = require('node-cron');
 var fs    = require("fs");
 var env = process.env.DUSGARAGE_CFG || "/tmp/dusgarage_cfg.js";
 var cfg = require(env);
-var sleep = require("sleep-async")();
+//var sleep = require("sleep-async")();
 var google = require('googleapis');
 var plus = google.plus('v1');
 
@@ -358,7 +358,7 @@ cron.schedule(cfg.CRON_DOOR_CHECK, function(){
 });
 
 console.log("Check door backend availability...");
-sleep.sleep(5000, checkDoorAvailability)
+//sleep.sleep(5000, checkDoorAvailability)
 
 
 //console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
