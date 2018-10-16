@@ -1,0 +1,192 @@
+apiVersion: v1
+kind: Template
+metadata:
+  annotations:
+    description: |
+      Daniels NodeJS Sample Template used to Demo OpenShift
+    iconClass: icon-nodejs
+    tags: instant-app,nodejs
+  name: daniels-nodejs-demo
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: dusgarage
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    nodeSelector: null
+    output:
+      to:
+        kind: ImageStreamTag
+        name: dusgarage:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      git:
+        ref: master
+        uri: ${GIT_URL}
+      type: Git
+    strategy:
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: nodejs:8
+          namespace: openshift
+      type: Source
+    triggers:
+    - generic:
+        secret: secret
+      type: Generic
+    - type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    replicas: 1
+    selector:
+      deploymentconfig: dusgarage
+    template:
+      metadata:
+        creationTimestamp: null
+        labels:
+          app: dusgarage
+          deploymentconfig: dusgarage
+      spec:
+        containers:
+        - image: dusgarage
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: dusgarage
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ready
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+          - mountPath: /tmp
+            name: volume-yihg1
+          dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        schedulerName: default-scheduler
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+            - key: node-cfg
+              path: dusgarage_cfg.js
+            name: dusgarage-cfg
+          name: volume-yihg1
+      test: false
+
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - dusgarage
+        from:
+          kind: ImageStreamTag
+          name: dusgarage:latest
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: dusgarage
+    sessionAffinity: None
+    type: ClusterIP
+  status:
+    loadBalancer: {}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: dusgarage
+    name: dusgarage
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: dusgarage
+      weight: 100
+    wildcardPolicy: None
+- apiVersion: v1
+  data:
+    node-cfg: |
+      var config = module.exports = {};
+
+      config.env = 'dev';
+      config.SERVER_PORT = '8080';
+
+      config.CURRENT_STATE_FILE_PATH = "/opt/app-root/src/parkinglots.json"
+
+      config.SECURITY_ENABLED = false
+
+      config.GOOGLE_CLIENT_ID = "894972897599-i2i74fpsh81plg6v934pianelkcf1ogh.apps.googleusercontent.com";
+      config.GOOGLE_CLIENT_SECRET = "i6rYSDSv4i30JhC6E7MGoF1k"
+      config.GOOGLE_CALLBACK_URL = "http://dusgarage-dusgarage-demo.6923.rh-us-east-1.openshiftapps.com/oauth2callback"
+
+      config.DOOR_URL_CHECK = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value"
+      config.DOOR_TIMEOUT = 15000
+      config.DOOR_URL_OPEN = "http://redhat:R3dHat123@dus-garage.privatedns.org:8000/dus/garagetest/value/1"
+
+      // ------------------------
+      // CRON Entries. Syntax:
+      // ss mm hh day month dayOfWeek
+
+      // When to reset all lots to "Free":
+      config.CRON_RESET_LOTS="42 42 4 * * *"
+
+      // How often to check door availability:
+      config.CRON_DOOR_CHECK= "0 0 * * * *"
+
+      module.exports = config;
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: null
+    name: dusgarage-cfg
+parameters:
+- name: GIT_URL
+  value: https://github.com/DanielFroehlich/dusgarage

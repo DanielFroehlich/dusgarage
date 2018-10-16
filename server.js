@@ -18,7 +18,7 @@ var plus = google.plus('v1');
 var parkinglots;
 var arrayOfStates;
 var doorState = "UNKNOWN";
-var isSecurityEnabled = true;
+var isSecurityEnabled = cfg.SECURITY_ENABLED;
 var fileSelfChanged = false;
 
 // ------------- Init stuff ----------------
