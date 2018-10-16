@@ -249,7 +249,7 @@ app.get('/oauth2callback', function(req, res){
 });
 
 function ensureAuthenticated(req, res, next) {
-  debug("ensureAuthenticated");
+  debug("ensureAuthenticated isSecurityEnabled=%s", isSecurityEnabled);
 
   if (isSecurityEnabled == true) {
     if (req.cookies.bearer) {
@@ -344,6 +344,7 @@ fs.readFile( __dirname + "/" + "states.json", 'utf8', function (err, data) {
     arrayOfStates = JSON.parse(data)
 });
 
+console.log("Security is enabled: %s", isSecurityEnabled)
 console.log("Creating server socket...")
 server.listen(cfg.SERVER_PORT);
 
