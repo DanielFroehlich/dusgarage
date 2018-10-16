@@ -193,7 +193,9 @@ function broadcastStateChange() {
 
 
 // ------------- Authentication stuff: ----------------
-console.log("Setting up google authentication..");
+console.log("Setting up google authentication with security enabled = %s...", isSecurityEnabled);
+";
+
 var OAuth2 = google.auth.OAuth2;
 var oauth2Client = new OAuth2(
   cfg.GOOGLE_CLIENT_ID,
@@ -344,7 +346,6 @@ fs.readFile( __dirname + "/" + "states.json", 'utf8', function (err, data) {
     arrayOfStates = JSON.parse(data)
 });
 
-console.log("Security is enabled: %s", isSecurityEnabled)
 console.log("Creating server socket...")
 server.listen(cfg.SERVER_PORT);
 
