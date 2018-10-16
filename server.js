@@ -194,7 +194,6 @@ function broadcastStateChange() {
 
 // ------------- Authentication stuff: ----------------
 console.log("Setting up google authentication with security enabled = %s...", isSecurityEnabled);
-";
 
 var OAuth2 = google.auth.OAuth2;
 var oauth2Client = new OAuth2(
