@@ -1,6 +1,5 @@
 # Create Image Stream for latest NodeJS Image:
-# oc import-image my-rhscl/nodejs-8-rhel7 --from=registry.access.redhat.com/rhscl/nodejs-8-rhel7 --confirm --scheduled
-#
+# oc tag registry.access.redhat.com/rhscl/nodejs-8-rhel7:latest dusgarage-dev/nodejs-8-rhel7:latest --reference-policy=local --scheduled
 #
 apiVersion: v1
 kind: Template
