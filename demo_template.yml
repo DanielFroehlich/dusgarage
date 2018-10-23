@@ -1,3 +1,7 @@
+# Create Image Stream for latest NodeJS Image:
+# oc import-image my-rhscl/nodejs-8-rhel7 --from=registry.access.redhat.com/rhscl/nodejs-8-rhel7 --confirm --scheduled
+#
+#
 apiVersion: v1
 kind: Template
 metadata:
@@ -36,8 +40,8 @@ objects:
       sourceStrategy:
         from:
           kind: ImageStreamTag
-          name: nodejs:8
-          namespace: openshift
+          name: nodejs-8-rhel7:latest
+          namespace: dusgarage-dev
       type: Source
     triggers:
     - generic:
