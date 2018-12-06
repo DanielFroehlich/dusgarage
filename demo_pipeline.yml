@@ -1,0 +1,38 @@
+# Dont forget grant view rights for jenkins into prod project:
+# oc policy add-role-to-user view system:serviceaccount:dusgarage-dev:jenkins -n dusgarage-prod
+
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  name: dusgarage-pipeline
+spec:
+  strategy:
+    jenkinsPipelineStrategy:
+        jenkinsfile: |-
+          node {
+              stage('BuildAndDeployToDev') {
+                  openshiftBuild(buildConfig: 'dusgarage', namespace: 'dusgarage-dev', showBuildLogs: 'true')
+              }
+
+              stage('VerifyDeployment') {
+                  openshiftVerifyBuild(buildConfig: 'dusgarage', checkForTriggeredDeployments: 'false', namespace: 'dusgarage-dev', waitTime: '120000' )
+                  openshiftVerifyDeployment(deploymentConfig: 'dusgarage', namespace: 'dusgarage-dev', waitTime: '120000' )
+              }
+
+              stage('RunTests') {
+              }
+
+              stage('ApproveToProd') {
+                input "GO for Production?"
+              }
+
+              stage("Initiate Prod Deployment") {
+                openshiftTag srcStream: 'dusgarage', srcTag: 'latest', destinationStream: 'dusgarage', destinationTag: 'prod', namespace: 'dusgarage-dev'
+              }
+
+              stage("Verify Prod Deployment") {
+                openshiftVerifyDeployment deploymentConfig: 'dusgarage', namespace: 'dusgarage-prod', waitTime: '120000'
+              }
+          }
+
+    type: JenkinsPipeline
