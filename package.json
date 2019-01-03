@@ -7,15 +7,12 @@
   "dependencies": {
     "body-parser": "^1.17.1",
     "cookie-parser": "^1.4.3",
-    "debug": "^2.6.0",
+    "debug": "^4.1.0",
     "express": "^4.14.0",
-    "googleapis": "^18.0.0",
-    "node-cron": "^1.1.2",
+    "googleapis": "^36.0.0",
+    "node-cron": "^2.0.3",
     "request": "^2.79.0",
-    "session-file-store": "^1.0.0",
-    "sleep": "^5.1.0",
-    "sleep-async": "^1.0.1",
-    "socket.io": "^1.7.2"
+    "socket.io": "^2.2.0"
   },
   "scripts": {
     "start": "node server.js"

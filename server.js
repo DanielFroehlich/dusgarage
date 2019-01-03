@@ -11,9 +11,8 @@ var cron  = require('node-cron');
 var fs    = require("fs");
 var env = process.env.DUSGARAGE_CFG || "/tmp/dusgarage_cfg.js";
 var cfg = require(env);
-//var sleep = require("sleep-async")();
-var google = require('googleapis');
-var plus = google.plus('v1');
+const {google} = require('googleapis');
+
 
 var parkinglots;
 var arrayOfStates;
@@ -195,16 +194,13 @@ function broadcastStateChange() {
 // ------------- Authentication stuff: ----------------
 console.log("Setting up google authentication with security enabled = %s...", isSecurityEnabled);
 
-var OAuth2 = google.auth.OAuth2;
-var oauth2Client = new OAuth2(
+const oauth2Client = new google.auth.OAuth2(
   cfg.GOOGLE_CLIENT_ID,
   cfg.GOOGLE_CLIENT_SECRET,
   cfg.GOOGLE_CALLBACK_URL
 );
 var authurl = oauth2Client.generateAuthUrl({
   scope: [
-    'https://www.googleapis.com/auth/plus.login',
-    'https://www.googleapis.com/auth/plus.me',
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile'
   ],
@@ -216,7 +212,7 @@ app.get('/auth/google', function(req, res){
   res.redirect(authurl);
 });
 
-app.get('/oauth2callback', function(req, res){
+app.get('/auth/google/callback', function(req, res){
   debug("oauth2callback");
   var code = req.query.code;
   debug("code = %s", code);
@@ -229,6 +225,7 @@ app.get('/oauth2callback', function(req, res){
         debug(msg);
         res.redirect("/error?msg="+msg);
       } else {
+/*
         if (tokens.refresh_token === undefined && tokens.access_token !== undefined) {
           debug("Handle Special case - use access_token");
           token = tokens.access_token;
@@ -242,6 +239,9 @@ app.get('/oauth2callback', function(req, res){
 
         debug("Storing  token in bearer cookie: %s", token);
         res.cookie('bearer', token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
+*/
+        debug("Storing id_token in cookie");
+        res.cookie("id_token", tokens.id_token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
 
         // Send back the token to the client in URL
         res.redirect("/");
@@ -253,57 +253,38 @@ function ensureAuthenticated(req, res, next) {
   debug("ensureAuthenticated isSecurityEnabled=%s", isSecurityEnabled);
 
   if (isSecurityEnabled == true) {
-    if (req.cookies.bearer) {
-      debug("bearer cookie: %s", req.cookies.bearer);
+    if (req.cookies.id_token) {
+      debug("id_token: %s", req.cookies.id_token);
 
+/*
       // Bearer token is a refresh_token
       // Use it to make a call to google plus API to retrieve user details
       oauth2Client.setCredentials({
         refresh_token: req.cookies.bearer
       });
-
-      plus.people.get({
-        userId: 'me',
-        auth: oauth2Client}, function (err, response) {
-          if (err) {
-            msg = "Bearer Cookie validation failed with error" + err;
-            debug(msg);
-            res.redirect("/error?msg="+msg);
-          } else {
-            debug("Bearer Cookie validated! response=%s", JSON.stringify(response));
-            req.user=response.displayName;
-
-            return next();
-          }
-      });
-
-/* First Version with id_token as bearer token:
-
-      debug("Bearer Cookie found - need to validate it");
-      oauth2Client.verifyIdToken(
-        req.cookies.bearer,
-        cfg.GOOGLE_CLIENT_ID,
-        function(err, login) {
-            if (err) {
-              debug("Bearer Cookie validation failed with error %s", err);
-              debug("Redirecting to login");
-              res.redirect("/auth/google");
-            } else {
-              debug("Bearer Cookie validated!");
-              var payload = login.getPayload();
-              var email = payload['email'];
-              var domain = payload['hd'];
-              debug("domain=%s, email = %s", domain, email);
-
-              req.user=email;
-
-              return next();
-            }
-        }
-      );
 */
+      // verify id_token is present:
+       oauth2Client.verifyIdToken({
+          idToken: req.cookies.id_token,
+          audience: cfg.GOOGLE_CLIENT_ID,
+      }, function (err, response) {
+        if (err) {
+          msg = "verifyIdToken failed with error" + err;
+          debug(msg);
+          res.redirect("/error?msg="+msg);
+        } else {
+          debug("verifyIdToken success! response=%s", response);
+
+          const payload = response.getPayload();
+          debug("payload: %s", JSON.stringify(payload));
+
+          req.user = payload['name'];
+          debug("req.user: %s", req.user);
+          return next();
+        }
+      });
     } else {
-      msg = "No Bearer Cookie found";
+      msg = "No id_token Cookie found";
       debug(msg);
       res.redirect("/error?msg="+msg);
     }
@@ -358,8 +339,4 @@ cron.schedule(cfg.CRON_DOOR_CHECK, function(){
   checkDoorAvailability()
 });
 
-console.log("Check door backend availability...");
-//sleep.sleep(5000, checkDoorAvailability)
-
-
-//console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
+console.log("Server startup completed! Listening at http://%s:%s", server.address().address, server.address().port)
