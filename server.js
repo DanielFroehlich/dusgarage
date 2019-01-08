@@ -159,7 +159,7 @@ app.get('/error', function (req, res) {
 });
 
 app.get('/logout', function (req, res) {
-  res.clearCookie("bearer");
+  res.clearCookie("id_token");
   res.redirect("/");
 });
 
