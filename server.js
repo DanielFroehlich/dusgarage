@@ -19,7 +19,7 @@ var arrayOfStates;
 var doorState = "UNKNOWN";
 var isSecurityEnabled = cfg.SECURITY_ENABLED;
 var fileSelfChanged = false;
-
+var refreshTokens = new Object(); // Map - key: id_token value: refresh_token
 // ------------- Init stuff ----------------
 app.use(cookieParser());
 app.use(bodyParser.json());
@@ -212,6 +212,15 @@ app.get('/auth/google', function(req, res){
   res.redirect(authurl);
 });
 
+oauth2Client.on('tokens', (tokens) => {
+  debug("oauth2 client on tokens event received.  tokens=%s", JSON.stringify(tokens));
+  if (tokens.refresh_token && tokens.id_token) {
+    debug("did receive a new  refresh_token for an id_token - remember it");
+    refreshTokens[tokens.id_token]  = tokens.refresh_token;
+    fs.writeFile( cfg.REFRESH_TOKENS_FILE_PATH, JSON.stringify(refreshTokens, null, 2));
+  }
+});
+
 app.get('/auth/google/callback', function(req, res){
   debug("oauth2callback");
   var code = req.query.code;
@@ -225,21 +234,6 @@ app.get('/auth/google/callback', function(req, res){
         debug(msg);
         res.redirect("/error?msg="+msg);
       } else {
-/*
-        if (tokens.refresh_token === undefined && tokens.access_token !== undefined) {
-          debug("Handle Special case - use access_token");
-          token = tokens.access_token;
-        } else {
-          debug("Handle Special case - use refresh_token");
-          token = tokens.refresh_token;
-        }
-
-//      debug("Storing id token in bearer cookie");
-//      res.cookie('bearer', tokens.id_token, { expires: new Date(Date.now() + 9999999), httpOnly:true });
-
-        debug("Storing  token in bearer cookie: %s", token);
-        res.cookie('bearer', token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
-*/
         debug("Storing id_token in cookie");
         res.cookie("id_token", tokens.id_token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
 
@@ -254,24 +248,55 @@ function ensureAuthenticated(req, res, next) {
 
   if (isSecurityEnabled == true) {
     if (req.cookies.id_token) {
-      debug("id_token: %s", req.cookies.id_token);
+      id_token = req.cookies.id_token;
+      debug("id_token: %s", id_token);
 
-/*
-      // Bearer token is a refresh_token
-      // Use it to make a call to google plus API to retrieve user details
-      oauth2Client.setCredentials({
-        refresh_token: req.cookies.bearer
-      });
-*/
+
       // verify id_token is present:
        oauth2Client.verifyIdToken({
-          idToken: req.cookies.id_token,
+          idToken: id_token,
           audience: cfg.GOOGLE_CLIENT_ID,
       }, function (err, response) {
         if (err) {
           msg = "verifyIdToken failed with error" + err;
           debug(msg);
-          res.redirect("/error?msg="+msg);
+
+          if (err.message.indexOf("Token used too late") !== -1) {
+            refresh_token = refreshTokens[id_token];
+
+            debug("Trying to refresh access token with refresh_token %s", refresh_token);
+            oauth2Client.setCredentials({refresh_token: refresh_token});
+            delete refreshTokens[id_token];
+
+            // Token is expired, need to refresh:
+            oauth2Client.refreshAccessToken(function (err, tokens){
+              if (err) {
+                msg = "refreshAccessToken failed with error " + err;
+                console.log(msg);
+                res.redirect("/error?msg="+msg);
+              } else {
+                console.log("refreshAccessToken success.");
+                id_token = tokens.id_token;
+                refreshTokens[id_token]= refresh_token;
+                fs.writeFile( cfg.REFRESH_TOKENS_FILE_PATH, JSON.stringify(refreshTokens, null, 2));
+                res.cookie("id_token", id_token, { expires: new Date(Date.now() + 1000*60*60*24*365), httpOnly:true });
+                oauth2Client.verifyIdToken({
+                   idToken: id_token,
+                   audience: cfg.GOOGLE_CLIENT_ID,
+                }, function (err, response) {
+                   if (err) {
+                     console.log("VerificationOfAFreshlyRenewedIdTokenShouldNeverEverFail: " + err);
+                     res.redirect("/error?msg=VerificationOfAFreshlyRenewedIdTokenShouldNeverEverFail");
+                   } else {
+                    req.user = response.getPayload()['name'];
+                    return next();
+                   }
+                 }
+               );
+             }});
+           } else {
+             res.redirect("/error?msg="+msg);
+           }
         } else {
           debug("verifyIdToken success! response=%s", response);
 
@@ -311,7 +336,6 @@ function readParkingLotsFromFile() {
 readParkingLotsFromFile();
 
 console.log("Watching parkinglots...");
-
 fs.watch(cfg.CURRENT_STATE_FILE_PATH, function (event, filename) {
     debug('Parkinglots changed on disc. filename=%s, Event=%s, selfChanged=%s ',filename, event, fileSelfChanged);
     if (filename && event=="change" && !fileSelfChanged) {
@@ -325,6 +349,19 @@ console.log("Reading states...")
 fs.readFile( __dirname + "/" + "states.json", 'utf8', function (err, data) {
     arrayOfStates = JSON.parse(data)
 });
+
+
+if (isSecurityEnabled) {
+  console.log("Reading refresh tokens...")
+  fs.readFile(cfg.REFRESH_TOKENS_FILE_PATH, 'utf8', function (err, data) {
+      if (err) {
+        console.log("Reading refresh_tokens...failed with err %s", err);
+      } else {
+        refreshTokens = JSON.parse(data)
+      }
+  });
+}
+
 
 console.log("Creating server socket...")
 server.listen(cfg.SERVER_PORT);
