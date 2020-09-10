@@ -40,8 +40,8 @@ objects:
               scheme: HTTP
             initialDelaySeconds: 5
             periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
+            successThreshold: 3
+            timeoutSeconds: 5
           name: dusgarage
           ports:
           - containerPort: 8080
